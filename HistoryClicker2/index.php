@@ -136,6 +136,7 @@
 			    }
 			    
 			?>
+				<div class='hiddenWorkers' id='hiddenWorkers'></div>
 			
 		    </div>
 		    
@@ -159,7 +160,7 @@
 					['stoneShed', 'Stone Storage']
 				    ],
 				    ['Raw Material Processing:',
-					['smith', 'Smithery'],
+					['smithery', 'Smithery'],
 					['sawmill', 'Sawmill']
 				    ],
 				    ['Army:',
@@ -243,13 +244,16 @@
 		
 		<span class='resTitle'>Production Buildings</span>
 		
-		<?php  generateResBlock(array('smith', 'sawmill', 'research'), '4');  ?>
+		<?php  generateResBlock(array('smiths', 'sawmill', 'research'), '3');  ?>
 		
 		<span class='resTitle'>Militairy</span>
 		
-		<?php  generateResBlock(array('barracks', 'stable'), '5');  ?>
+		<?php  generateResBlock(array('barracks', 'stable'), '3');  ?>
 	</div>
 	</div>
 	<div class='tooltip' id='tooltip' style="display: none;"></div>
+	<script>
+		checkStuff();
+	</script>
   </body> 
 </html>

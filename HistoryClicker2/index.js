@@ -16,7 +16,7 @@ var res = {
 	land:      {amount: 2,   max: 10,  income: 0},
 	faith:     {amount: 0,   max: 200, income: 0},
 	research:  {amount: 0,   max: 0,   income: 0},
-	smith:     {amount: 0,   max: 0,   income: 0},
+	smiths:    {amount: 0,   max: 0,   income: 0},
 	sawmill:   {amount: 0,   max: 0,   income: 0},
 	barracks:  {amount: 0,   max: 0,   income: 0},
 	stable:    {amount: 0,   max: 0,   income: 0}
@@ -95,9 +95,9 @@ var hiddenRes = {
 	faith:    true,
 	leather:  true,
 	iron:     true,
-	smith:    true,
+	smiths:   true,
 	sawmill:  true,
-	barracks:  true,
+	barracks: true,
 	stable:   true
 };
 
@@ -189,14 +189,14 @@ var buildings = {
 			land:   6,
 			desc:   "<b>Cost:</b><br />20 wood - 30 stone - 6 land<br /><b>Gives: </b><br /> 10 max cavalery"
 		},
-		smith: {
+		smithery: {
 			cost: {
 				stone: 60
 			},
 			amount: 0,
 			max:    1,
 			income: 0,
-			type:   "smith",
+			type:   "smiths",
 			land:   2,
 			desc:   "<b>Cost:</b><br />60 stone - 2 land<br /><b>Gives: </b><br /> 1 max smith"
 		},
@@ -219,6 +219,21 @@ var gain = {
 		stone:      0.4
 };
 
+var specialWorkers = {
+	smith:     {
+		housing: "smiths"
+	},
+	sawmiller: {
+		housing: "sawmill"
+	},
+	soldier:   {
+		housing: "barracks"
+	},
+	cavalery:  {
+		housing: "stable"
+	}
+};
+
 var workers = {
 		civilians:    0,
 		unemployed:   0,
@@ -232,7 +247,7 @@ var workers = {
 		cavalery:     0
 	};
 
-var currentAffinity = undefined;
+var currentAffinity = null;
 var username = "Bananadana";
 var safeHaven = 6000;
 
@@ -241,7 +256,8 @@ var sRC = {
 		food:       1500,
 		wood:       1500,
 		stone:      1500,
-		land:       5000
+		iron:       1000,
+		land:       4500
 };
 
 var x = document;
@@ -262,6 +278,13 @@ function start() {
 var second = 1;
 
 
+function updateStuff()
+{
+	updateWorkers();
+	updateBuildings();
+	checkStuff();
+}
+
 // Generates a random number between $min and $max
 function getRandomInt(min, max) {
 	return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -277,6 +300,24 @@ function ucfirst(string)
 function strtolower(string)
 {
 	return string.toLowerCase();
+}
+
+function generatePlus(funct, type)
+{
+	var buff = "<div class='add free' onclick='"+funct+"(\""+type+"\", 1)'>+1</div>";
+	buff +=    "<div class='add free' onclick='"+funct+"(\""+type+"\", 10)'>+10</div>";
+	buff +=    "<div class='add free' onclick='"+funct+"(\""+type+"\", 100)'>+100</div>";
+	buff +=    "<div class='add free' onclick='"+funct+"(\""+type+"\", 1000)'>+1000</div>";
+	return buff;
+}
+    
+function generateMinus(funct, type)
+{
+	var buff = "<div class='add free' onclick='"+funct+"(\""+type+"\", -1000)'>-1000</div>";
+	buff +=    "<div class='add free' onclick='"+funct+"(\""+type+"\", -100)'>-100</div>";
+	buff +=    "<div class='add free' onclick='"+funct+"(\""+type+"\", -10)'>-10</div>";
+	buff +=    "<div class='add free' onclick='"+funct+"(\""+type+"\", -1)'>-1</div>";
+	return buff;
 }
 
 
@@ -316,7 +357,6 @@ function gameloop(){
 	// Functions that need to be checked / Executed
 	resources();
 	income();
-	checkStuff();
 	calculateAttack();
 	
 	// Re-Starts itself after 50ms (20x per second)
@@ -330,21 +370,23 @@ function save()
 {
 	// Store all important HTML elements.
 	var html = {
-			tents: parseInt(x.getElementById("tentCount").innerHTML),
-			huts:  parseInt(x.getElementById("hutCount").innerHTML),
-			food:  parseInt(x.getElementById("foodShedCount").innerHTML),
-			wood:  parseInt(x.getElementById("woodShedCount").innerHTML),
-			stone: parseInt(x.getElementById("stoneShedCount").innerHTML)
+			tents:     parseInt(x.getElementById("tentCount").innerHTML),
+			huts:      parseInt(x.getElementById("hutCount").innerHTML),
+			food:      parseInt(x.getElementById("foodShedCount").innerHTML),
+			wood:      parseInt(x.getElementById("woodShedCount").innerHTML),
+			stone:     parseInt(x.getElementById("stoneShedCount").innerHTML)
 	};
 	
 	// Prepare the save file
 	var save = {
-			res:       JSON.stringify(res),
-			workers:   JSON.stringify(workers),
-			buildings: JSON.stringify(buildings),
-			html:      JSON.stringify(html),
-			sh:        safeHaven,
-			religion:  JSON.stringify(currentAffinity)
+			res:        JSON.stringify(res),
+			workers:    JSON.stringify(workers),
+			buildings:  JSON.stringify(buildings),
+			html:       JSON.stringify(html),
+			sh:         safeHaven,
+			religion:   JSON.stringify(currentAffinity),
+			hiddenRes:  JSON.stringify(hiddenRes),
+			hiddenTask: JSON.stringify(hiddenTask)
 	};
 	
 	// Save the actual cookie
@@ -368,6 +410,8 @@ function load()
 	buildings       = JSON.parse(load_.buildings);
 	html            = JSON.parse(load_.html);
 	safeHaven       = JSON.parse(load_.sh);
+	hiddenRes       = JSON.parse(load_.hiddenRes);
+	hiddenTask      = JSON.parse(load_.hiddenTask);
 	currentAffinity = JSON.parse(load_.religion);
 	
 	// Sets the HTML elements correctly
@@ -376,6 +420,8 @@ function load()
 	x.getElementById("foodShedCount").innerHTML  = html.food;
 	x.getElementById("woodShedCount").innerHTML  = html.wood;
 	x.getElementById("stoneShedCount").innerHTML = html.stone;
+	
+	updateStuff();
 	
 	alert("Loaded!");
 }
@@ -428,7 +474,7 @@ function resources(){
 		x.getElementById(key+'Count').innerHTML=Math.round(res[key].amount*10)/10;
 		x.getElementById(key+'Barfull').style.width=(res[key].amount/res[key].max*100)+'%';
 		x.getElementById(key+"Max").innerHTML=res[key].max;
-  }
+	}
 
 	for(var i = 0; i < workers.farmers; i++)
 		if(getRandomInt(0, sRC.food) == 0 && res.skins.amount < res.skins.max)
@@ -442,17 +488,28 @@ function resources(){
 		if(getRandomInt(0, sRC.land) == 0)
 			res.land.max++;
 
-	for(var k = 0; k < workers.miners; k++ && res.ore.amount < res.ore.max)
-		if(getRandomInt(0, sRC.stone) == 0)
+	for(var k = 0; k < workers.miners; k++)
+		if(getRandomInt(0, sRC.stone) == 0 && res.ore.amount < res.ore.max)
 			res.ore.amount++;
 	
-    res.houses.amount = workers.civilians;
-    x.getElementById('civCount').innerHTML=workers.civilians;
-    x.getElementById('unempCount').innerHTML=workers.unemployed;
-    x.getElementById('farmersCount').innerHTML=workers.farmers;
-    x.getElementById('woodcersCount').innerHTML=workers.woodcers;
-    x.getElementById('minersCount').innerHTML=workers.miners;
-    x.getElementById('armedFarmersCount').innerHTML=workers.armedFarmers;
+	for(var k = 0; k < workers.smith; k++)
+		if(getRandomInt(0, sRC.iron) == 0 && res.ore.amount > 0 && res.iron.amount < res.iron.max)
+		{
+			res.ore.amount--;
+			res.iron.amount++;
+		}
+	
+    res.houses.amount                               = workers.civilians;
+    x.getElementById('civCount').innerHTML          = workers.civilians;
+    x.getElementById('unempCount').innerHTML        = workers.unemployed;
+    x.getElementById('farmersCount').innerHTML      = workers.farmers;
+    x.getElementById('woodcersCount').innerHTML     = workers.woodcers;
+    x.getElementById('minersCount').innerHTML       = workers.miners;
+    x.getElementById('armedFarmersCount').innerHTML = workers.armedFarmers;
+    
+    for(var workerType in workers)
+    	if(x.getElementById(workerType + 'Count') != undefined)
+    		x.getElementById(workerType + 'Count').innerHTML=workers[workerType];
 }
 
 
@@ -470,7 +527,7 @@ function checkStuff()
 	}
 	
 	// Set the username, size and affinity in the header
-	if(currentAffinity == undefined){
+	if(currentAffinity == null){
 		x.getElementById("civLevel").innerHTML = "Small Camp";
 		x.getElementById("usernameHeader").innerHTML = username;
 	}
@@ -576,7 +633,7 @@ function addCiv(amount){
 // Chooses the affinity of the village
 function chooseAffinity(affinity)
 {
-	if(currentAffinity == undefined && affinities[affinity] != undefined)
+	if(currentAffinity == null && affinities[affinity] != undefined)
 	{
 		currentAffinity = affinities[affinity];
 		x.getElementById('affinityMenu0').style.display = "none";
@@ -633,25 +690,62 @@ function updateBuildings()
 
 function updateWorkers()
 {
+	var buff = "";
 	
+	for(var type in hiddenTask)
+		if(hiddenTask[type] == false)
+		{
+			buff += "<div class='" + type + " line'>";
+				buff += generateMinus('specialAssign', type);
+				buff += "<div class='block'>";
+					buff += "<span>" + ucfirst(strtolower(type)) + ": <a id='" + type + "Count'>" + workers[type] + "</a></span>";
+				buff += "</div>";
+				buff += generatePlus('specialAssign', type);
+			buff += "</div>";
+		}
+	
+	x.getElementById('hiddenWorkers').innerHTML = buff;
 }
 
 
 
 // Assigns a civilian to a certain task
-function assignCiv(place, amount){
+function assignCiv(place, amount)
+{
+	var continueBool = specialAssign(place, amount);
 	
-	// If this task exists
-	if (workers[place] != undefined)
+	if(continueBool === true)
 	{
-		if (amount < 0 && -amount > workers[place])
-			amount = -workers[place];
-		else if (amount > 0 && amount > workers['unemployed'])
-			amount = workers['unemployed'];
-		
-		workers[place] += amount;
-		workers['unemployed'] -= amount;
+		// If this task exists
+		if (workers[place] != undefined)
+		{
+			if (amount < 0 && -amount > workers[place])
+				amount = -workers[place];
+			else if (amount > 0 && amount > workers['unemployed'])
+				amount = workers['unemployed'];
+			
+			workers[place] += amount;
+			workers['unemployed'] -= amount;
+		}
 	}
+	
+	updateStuff();
+}
+
+function specialAssign(type, amount)
+{
+	if(specialWorkers[type] == undefined)
+		return true;
+	
+	// If there's enough food and room in the houses
+    if (res[specialWorkers[type].housing].amount + amount <= res[specialWorkers[type].housing].max && workers.unemployed >= amount) 
+    {
+			workers[type]                            += amount;
+			workers.unemployed                       -= amount;
+			res[specialWorkers[type].housing].amount += amount;
+    }
+    
+	return false;
 }
 
 
@@ -732,6 +826,7 @@ function kill(amount){
 // Build things (Building ID in array, amount of buildings that need to be constructed)
 function construct(buildingType, amount)
 {
+	console.log(buildingType);
 	// Is there enough land?
 	if((buildings[buildingType].land * amount) + res.land.amount > res.land.max)
 		return false;
@@ -756,15 +851,17 @@ function construct(buildingType, amount)
 	// Add the amount of used land.
 	res.land.amount += buildings[buildingType].land * amount;
 	
+	updateStuff();
+	
 	return true;
 }
 
 
 function onConstruct(buildingType)
 {
-    if (buildingType == "smith") {
+    if (buildingType == "smithery") {
       hiddenTask.smith = false;
-      hiddenRes.smith = false;
+      hiddenRes.smiths = false;
       hiddenRes.iron = false;
     }
 }
@@ -793,6 +890,8 @@ function constructAffinity(category, buildingType, amount)
 	
 	// Add the amount of used land.
 	res.land.amount += currentAffinity.buildings[category][buildingType].land * amount;
+	
+	updateStuff();
 	
 	return true;
 }
